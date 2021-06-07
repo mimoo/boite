@@ -1,0 +1,5 @@
+(executable
+ (name main)
+ (public_name boite)
+ (package boite)
+ (libraries boitelib cmdliner toml))

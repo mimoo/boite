@@ -1,0 +1,4 @@
+(library
+ (name boitelib)
+ (public_name boitelib)
+ (libraries))

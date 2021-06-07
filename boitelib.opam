@@ -1,0 +1,15 @@
+opam-version: "2.0"
+name: "boitelib"
+version: "0.1.0"
+synopsis: "..."
+maintainer: "davidwong.crypto@gmail.com"
+authors: "davidwong.crypto@gmail.com"
+license: "Apache-2.0"
+homepage: "https://github.com/mimoo/boite"
+bug-reports: "davidwong.crypto@gmail.com"
+depends: [
+  "ocaml" {>= "4.08"}
+  "dune" {>= "2.8"}
+]
+build: ["dune" "build" "-p" name "-j" jobs]
+dev-repo: "git+https://github.com/mimoo/boite.git"
