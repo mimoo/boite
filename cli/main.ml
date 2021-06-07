@@ -13,7 +13,9 @@ let new_term =
   let doc = "initialize a project in a path" in
   Term.info "new" ~doc ~exits:Term.default_exits
 
-let path = Arg.(value & opt string "." & info [ "p"; "path" ] ~docv:"PATH")
+let path = 
+  let doc = "The path to the project to create." in
+  Arg.(required & pos 0 (some string) None & info [ ] ~docv:"PATH" ~doc)
 
 let new_t = Term.(const new_project $ is_lib $ path)
 
