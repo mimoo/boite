@@ -1,39 +1,60 @@
+open Core
 open Cmdliner
 
 (* common between [new] and [init] *)
 
 let is_lib = Arg.(value & flag & info [ "lib" ])
 
+let init_folder is_lib path =
+  printf "%B %s" is_lib path;
+  (* create boite.toml *)
+  failwith "unimplemented"
+
 let new_project is_lib path =
-  Format.printf "this is the path: %s, is it a lib? %B\n" path is_lib
+  let is_directory = Sys.is_directory path in
+  printf "this is the path: %s, is it a lib? %B\n" path is_lib;
+  let is_initialized = match is_directory with 
+    | `Yes -> true
+    | _ -> false
+  in
+  if is_initialized then 
+    printf "%s is already a directory\n" path
+  else
+    (* create dir *)
+    Unix.mkdir_p path;
+    init_folder is_lib path
 
 (* new *)
 
-let new_term =
-  let doc = "initialize a project in a path" in
-  Term.info "new" ~doc ~exits:Term.default_exits
+module New = struct 
+  let info =
+    let doc = "initialize a project in a path" in
+    Term.info "new" ~doc ~exits:Term.default_exits
 
-let path = 
-  let doc = "The path to the project to create." in
-  Arg.(required & pos 0 (some string) None & info [ ] ~docv:"PATH" ~doc)
+  let path = 
+    let doc = "The path to the project to create." in
+    Arg.(required & pos 0 (some string) None & info [ ] ~docv:"PATH" ~doc)
 
-let new_t = Term.(const new_project $ is_lib $ path)
+  let term = Term.(const new_project $ is_lib $ path)
 
-let new_cmd = (new_t, new_term)
+  let cmd = (term, info)
+end
 
 (* init *)
 
-let init =
-  let doc = "initialize a project in the current dir" in
-  Term.info "init" ~doc ~exits:Term.default_exits
+module Init = struct 
+  let info =
+    let doc = "initialize a project in the current dir" in
+    Term.info "init" ~doc ~exits:Term.default_exits
 
-let new_project_wrap is_lib =
-  let path = Sys.getcwd () in
-  new_project is_lib path
+  let new_project_wrap is_lib =
+    let path = Sys.getcwd () in
+    new_project is_lib path
 
-let init_t = Term.(const new_project_wrap $ is_lib)
+  let term = Term.(const new_project_wrap $ is_lib)
 
-let init_cmd = (init_t, init)
+  let cmd = (term, info)
+end
 
 (* boite *)
 
@@ -65,4 +86,4 @@ let boite_cmd = (boite_t, boite)
 
 (* ... *)
 
-let () = Term.exit @@ Term.eval_choice boite_cmd [ init_cmd; new_cmd ]
+let () = Term.exit @@ Term.eval_choice boite_cmd [ Init.cmd; New.cmd ]
