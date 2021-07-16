@@ -8,32 +8,40 @@ let is_lib = Arg.(value & flag & info [ "lib" ])
 let init_folder is_lib path =
   printf "%B %s" is_lib path;
   (* create boite.toml *)
-  failwith "unimplemented"
+  let name = Filename.realpath path |> Filename.basename in
+  let data = Defaults.manifest in
+  let data = String.substr_replace_first data ~pattern:"{{name}}" ~with_:name in
+  let manifest_path = Filename.concat path "Boite.toml" in
+  Out_channel.write_all manifest_path ~data;
+  (* create src dir *)
+  let src_path = Filename.concat path "src" in
+  Unix.mkdir_p src_path;
+  (* create ml file *)
+  let path, data =
+    if is_lib then (Filename.concat src_path "lib.ml", Defaults.lib_ml)
+    else (Filename.concat src_path "main.ml", Defaults.main_ml)
+  in
+  Out_channel.write_all path ~data
 
 let new_project is_lib path =
   let is_directory = Sys.is_directory path in
   printf "this is the path: %s, is it a lib? %B\n" path is_lib;
-  let is_initialized = match is_directory with 
-    | `Yes -> true
-    | _ -> false
-  in
-  if is_initialized then 
-    printf "%s is already a directory\n" path
-  else
-    (* create dir *)
+  let is_initialized = match is_directory with `Yes -> true | _ -> false in
+  if is_initialized then printf "%s is already a directory\n" path
+  else (* create dir *)
     Unix.mkdir_p path;
-    init_folder is_lib path
+  init_folder is_lib path
 
 (* new *)
 
-module New = struct 
+module New = struct
   let info =
     let doc = "initialize a project in a path" in
     Term.info "new" ~doc ~exits:Term.default_exits
 
-  let path = 
+  let path =
     let doc = "The path to the project to create." in
-    Arg.(required & pos 0 (some string) None & info [ ] ~docv:"PATH" ~doc)
+    Arg.(required & pos 0 (some string) None & info [] ~docv:"PATH" ~doc)
 
   let term = Term.(const new_project $ is_lib $ path)
 
@@ -42,7 +50,7 @@ end
 
 (* init *)
 
-module Init = struct 
+module Init = struct
   let info =
     let doc = "initialize a project in the current dir" in
     Term.info "init" ~doc ~exits:Term.default_exits
