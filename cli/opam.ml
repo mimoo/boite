@@ -15,7 +15,7 @@ let check_switch ~ocaml_version =
 (** create a switch *)
 let create_switch ~ocaml_version =
   let ocaml_version = Ocaml_version.to_string ocaml_version in
-  let cmd = "opam switch create . " ^ ocaml_version in
+  let cmd = "opam switch create . ocaml-base-compiler." ^ ocaml_version in
   printf "running: %s\n%!" cmd;
   ignore (Commands.run cmd)
 
@@ -52,8 +52,7 @@ let init ~(ocaml_version : Ocaml_version.t) path =
       (Semver.to_string Defaults.opam_version);
     install ());
 
-  (* check if there's a switch installed and if it's at the right version *)
-  (* otherwise create a switch *)
+  (* check if there's a switch installed and if it's at the right version,  otherwise create a switch *)
   let switch_dir = FilePath.concat path "_opam" in
   if not (switch_exists_at switch_dir) then (
     printf

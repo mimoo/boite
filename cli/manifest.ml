@@ -7,7 +7,7 @@ type package = { name : string; version : Semver.t }
 type ocaml = { ocaml_version : Ocaml_version.t; dune_version : Semver.t option }
 
 type dependency = {
-  version : Semver.t;
+  version : Semver.t option;
   path : string option;
   git : string option;
 }
@@ -43,6 +43,14 @@ module Utils = struct
         printf "key %s should be of type string\n" key;
         failwith "error parsing toml file"
 
+  let get_table_opt table key =
+    match Table.find_opt (Table.Key.of_string key) table with
+    | Some (TTable t) -> Some t
+    | None -> None
+    | _ ->
+        printf "key %s is not a table\n" key;
+        failwith "error parsing toml file"
+
   let get_string table ~(key : string) : string =
     let table = Table.find_opt (Table.Key.of_string key) table in
     match table with
@@ -53,7 +61,12 @@ module Utils = struct
 
   let get_string_opt table ~(key : string) : string option =
     let table = Table.find_opt (Table.Key.of_string key) table in
-    match table with Some (TString s) -> Some s | _ -> None
+    match table with
+    | Some (TString s) -> Some s
+    | None -> None
+    | _ ->
+        printf "couldn't get string from key %s\n" key;
+        failwith "error parsing toml file"
 end
 
 (* functions *)
@@ -82,23 +95,48 @@ let parse_manifest filename =
   let dune_version = Option.map dune_version ~f:Utils.to_semver in
   let ocaml = { ocaml_version; dune_version } in
 
+  (* parsing a single dependency *)
+  let parse_dep (name, dep_info) =
+    (* name *)
+    let name = Toml.Types.Table.Key.to_string name in
+    match dep_info with
+    (* value is either of the form dep = "0.1.0" *)
+    | Toml.Types.TString version ->
+        let version = Some (Utils.to_semver version) in
+        (name, { version; path = None; git = None })
+    (* or of the form dep = { version = "0.1.0", path = "..."} *)
+    | Toml.Types.TTable tbl ->
+        let version =
+          Utils.get_string_opt tbl ~key:"version"
+          |> Option.map ~f:Utils.to_semver
+        in
+        let path = Utils.get_string_opt tbl ~key:"path" in
+        let git = Utils.get_string_opt tbl ~key:"git" in
+        if Option.is_some path && Option.is_some git then (
+          printf "dependency %s has a path and a git, invalid\n" name;
+          failwith "error while parsing Boite.toml");
+        if Option.is_none version && Option.is_none git && Option.is_none path
+        then (
+          printf "dependency %s needs to have a version, a path, or a git\n"
+            name;
+          failwith "error while parsing Boite.toml");
+        (name, { version; path; git })
+    | _ ->
+        printf "dependency %s is not defined correctly\n" name;
+        failwith "error while parsing Boite.toml"
+  in
   (* parsing dependencies *)
-  (*
-  let parse manifest dependencies =
-    let deps = Toml.Types.Table.find (Toml.Min.key dependencies) manifest in
-    let version = Utils.get_string deps ~key:"version" in
-    let path = Utils.get_string_opt deps ~key:"path" in
-    let git = Utils.get_string_opt deps ~key:"git" in
-    *)
-  {
-    package;
-    ocaml;
-    dependencies = [];
-    dev_dependencies = [];
-    build_dependencies = [];
-  }
+  let parse_deps table dependencies =
+    let deps = Utils.get_table_opt table dependencies in
+    let deps = Option.map ~f:Toml.Types.Table.bindings deps in
+    match deps with Some d -> List.map ~f:parse_dep d | None -> []
+  in
+  let dependencies = parse_deps manifest "dependencies" in
+  let dev_dependencies = parse_deps manifest "dev_dependencies" in
+  let build_dependencies = parse_deps manifest "build_dependencies" in
+  { package; ocaml; dependencies; dev_dependencies; build_dependencies }
 
-(*
+(* writing manifest files
 let create_manifest name =
   let package = { name; version = "0.1.0" } in
   let ocaml = { ocaml_version; dune_version } in
