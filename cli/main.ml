@@ -5,10 +5,9 @@ open Cmdliner
 
 let is_lib = Arg.(value & flag & info [ "lib" ])
 
-let init_folder is_lib path =
+let init_folder ~is_lib ~path ~name =
   printf "%B %s" is_lib path;
   (* create boite.toml *)
-  let name = Filename.realpath path |> Filename.basename in
   let data = Defaults.manifest in
   let data = String.substr_replace_first data ~pattern:"{{name}}" ~with_:name in
   let manifest_path = Filename.concat path "Boite.toml" in
@@ -23,14 +22,19 @@ let init_folder is_lib path =
   in
   Out_channel.write_all path ~data
 
-let new_project is_lib path =
+let new_project ~is_lib ?name path =
   let is_directory = Sys.is_directory path in
   printf "this is the path: %s, is it a lib? %B\n" path is_lib;
   let is_initialized = match is_directory with `Yes -> true | _ -> false in
   if is_initialized then printf "%s is already a directory\n" path
   else (* create dir *)
     Unix.mkdir_p path;
-  init_folder is_lib path
+  let name =
+    match name with
+    | None -> Filename.realpath path |> Filename.basename
+    | Some name -> name
+  in
+  init_folder ~is_lib ~path ~name
 
 (* new *)
 
@@ -43,7 +47,9 @@ module New = struct
     let doc = "The path to the project to create." in
     Arg.(required & pos 0 (some string) None & info [] ~docv:"PATH" ~doc)
 
-  let term = Term.(const new_project $ is_lib $ path)
+  let new_project_wrap is_lib path = new_project ~is_lib path
+
+  let term = Term.(const new_project_wrap $ is_lib $ path)
 
   let cmd = (term, info)
 end
@@ -55,11 +61,15 @@ module Init = struct
     let doc = "initialize a project in the current dir" in
     Term.info "init" ~doc ~exits:Term.default_exits
 
-  let new_project_wrap is_lib =
+  let new_project_wrap is_lib name =
     let path = Sys.getcwd () in
-    new_project is_lib path
+    new_project ~is_lib ~name path
 
-  let term = Term.(const new_project_wrap $ is_lib)
+  let project_name =
+    let doc = "The name of your project" in
+    Arg.(value & pos 0 string "my_lib" & info [] ~docv:"NAME" ~doc)
+
+  let term = Term.(const new_project_wrap $ is_lib $ project_name)
 
   let cmd = (term, info)
 end
