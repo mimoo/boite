@@ -4,7 +4,7 @@ open Core
 
 type package = { name : string; version : Semver.t }
 
-type ocaml = { ocaml_version : Semver.t; dune_version : Semver.t option }
+type ocaml = { ocaml_version : Ocaml_version.t; dune_version : Semver.t option }
 
 type dependency = {
   version : Semver.t;
@@ -76,7 +76,7 @@ let parse_manifest filename =
   (* parse ocaml *)
   let ocaml = Utils.get_table manifest "ocaml" in
   let ocaml_version =
-    Utils.get_string ocaml ~key:"ocaml_version" |> Utils.to_semver
+    Utils.get_string ocaml ~key:"ocaml_version" |> Ocaml_version.of_string_exn
   in
   let dune_version = Utils.get_string_opt ocaml ~key:"dune_version" in
   let dune_version = Option.map dune_version ~f:Utils.to_semver in

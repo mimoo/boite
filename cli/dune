@@ -2,4 +2,4 @@
  (name main)
  (public_name boite)
  (package boite)
- (libraries boitelib core cmdliner toml semver2))
+ (libraries boitelib core cmdliner toml semver2 fileutils ocaml-version))

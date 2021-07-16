@@ -9,5 +9,4 @@ let build path =
   Opam.init ~ocaml_version path;
 
   (* check that we have all dependencies *)
-  printf "path: %s\n" path;
   printf "built\n"
