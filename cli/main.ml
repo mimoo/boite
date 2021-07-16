@@ -5,36 +5,49 @@ open Cmdliner
 
 let is_lib = Arg.(value & flag & info [ "lib" ])
 
-let init_folder ~is_lib ~path ~name =
-  printf "%B %s" is_lib path;
+let new_project ~is_lib ?name path =
+  let is_directory = Sys.is_directory path in
+  printf "this is the path: %s, is it a lib? %B\n" path is_lib;
+  let is_initialized = match is_directory with `Yes -> true | _ -> false in
+
+  (* create dir if it doesn't exist *)
+  if not is_initialized then Unix.mkdir_p path;
+
+  (* abort if there's any file in the folder *)
+  if Array.length (Sys.readdir path) > 0 then (
+    printf "aborting, folder already initialized\n";
+    failwith "error");
+
+  (* initialize git repo, or abort if already done *)
+  ignore (Commands.run "git init");
+
+  (* create .gitignore *)
+  let git_ignore_path = Filename.concat path ".gitignore" in
+  Out_channel.write_all git_ignore_path ~data:Defaults.git_ignore;
+
+  (* figure out project name *)
+  let name =
+    match name with
+    | None -> Filename.realpath path |> Filename.basename
+    | Some name -> name
+  in
+
   (* create boite.toml *)
   let data = Defaults.manifest in
   let data = String.substr_replace_first data ~pattern:"{{name}}" ~with_:name in
   let manifest_path = Filename.concat path "Boite.toml" in
   Out_channel.write_all manifest_path ~data;
+
   (* create src dir *)
   let src_path = Filename.concat path "src" in
   Unix.mkdir_p src_path;
+
   (* create ml file *)
   let path, data =
     if is_lib then (Filename.concat src_path "lib.ml", Defaults.lib_ml)
     else (Filename.concat src_path "main.ml", Defaults.main_ml)
   in
   Out_channel.write_all path ~data
-
-let new_project ~is_lib ?name path =
-  let is_directory = Sys.is_directory path in
-  printf "this is the path: %s, is it a lib? %B\n" path is_lib;
-  let is_initialized = match is_directory with `Yes -> true | _ -> false in
-  if is_initialized then printf "%s is already a directory\n" path
-  else (* create dir *)
-    Unix.mkdir_p path;
-  let name =
-    match name with
-    | None -> Filename.realpath path |> Filename.basename
-    | Some name -> name
-  in
-  init_folder ~is_lib ~path ~name
 
 (* new *)
 
@@ -66,10 +79,26 @@ module Init = struct
     new_project ~is_lib ~name path
 
   let project_name =
-    let doc = "The name of your project" in
+    let doc = "The name of your project." in
     Arg.(value & pos 0 string "my_lib" & info [] ~docv:"NAME" ~doc)
 
   let term = Term.(const new_project_wrap $ is_lib $ project_name)
+
+  let cmd = (term, info)
+end
+
+(* build *)
+
+module Build = struct
+  let info =
+    let doc = "build the project contained in the current dir" in
+    Term.info "build" ~doc ~exits:Term.default_exits
+
+  let path =
+    let doc = "The path to the project to create." in
+    Arg.(value & pos 0 string "." & info [] ~docv:"PATH" ~doc)
+
+  let term = Term.(const Build.build $ path)
 
   let cmd = (term, info)
 end
@@ -83,12 +112,12 @@ let boite =
 let revolt () =
   print_endline
     "Common boite commands are: \n\
-     \tbuild\n\
+     \tbuild (WIP)\n\
      \tcheck\n\
      \tclean\n\
      \tdoc\n\
-     \tnew\n\
-     \tinit\n\
+     \tnew (works)\n\
+     \tinit (works)\n\
      \trun\n\
      \ttest\n\
      \tbench\n\
@@ -104,4 +133,5 @@ let boite_cmd = (boite_t, boite)
 
 (* ... *)
 
-let () = Term.exit @@ Term.eval_choice boite_cmd [ Init.cmd; New.cmd ]
+let () =
+  Term.exit @@ Term.eval_choice boite_cmd [ Init.cmd; New.cmd; Build.cmd ]
