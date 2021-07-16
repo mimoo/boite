@@ -2,12 +2,15 @@ open Core
 
 (* boite.toml *)
 
-type package = { name : string; version : Semver.t }
+type package = { name : string; version : Version.t }
 
-type ocaml = { ocaml_version : Ocaml_version.t; dune_version : Semver.t option }
+type ocaml = {
+  ocaml_version : Ocaml_version.t;
+  dune_version : Version.t option;
+}
 
 type dependency = {
-  version : Semver.t option;
+  version : Version.t option;
   path : string option;
   git : string option;
 }
@@ -25,13 +28,15 @@ type manifest = {
 module Utils = struct
   (* semver stuff *)
 
-  (** convert a [string] to a [Semver.t] *)
+  (* convert a [string] to a [Semver.t] *)
+  (*
   let to_semver s =
     match Semver.of_string s with
     | Some x -> x
     | None ->
         printf "could not parse semver string '%s'\n" s;
         failwith "error"
+  *)
 
   (* toml stuff *)
   open Toml.Types
@@ -83,7 +88,7 @@ let parse_manifest filename =
   (* parse package *)
   let package = Utils.get_table manifest "package" in
   let name = Utils.get_string package ~key:"name" in
-  let version = Utils.get_string package ~key:"version" |> Utils.to_semver in
+  let version = Utils.get_string package ~key:"version" |> Version.of_string in
   let package = { name; version } in
 
   (* parse ocaml *)
@@ -92,7 +97,7 @@ let parse_manifest filename =
     Utils.get_string ocaml ~key:"ocaml_version" |> Ocaml_version.of_string_exn
   in
   let dune_version = Utils.get_string_opt ocaml ~key:"dune_version" in
-  let dune_version = Option.map dune_version ~f:Utils.to_semver in
+  let dune_version = Option.map dune_version ~f:Version.of_string in
   let ocaml = { ocaml_version; dune_version } in
 
   (* parsing a single dependency *)
@@ -102,13 +107,13 @@ let parse_manifest filename =
     match dep_info with
     (* value is either of the form dep = "0.1.0" *)
     | Toml.Types.TString version ->
-        let version = Some (Utils.to_semver version) in
+        let version = Some (Version.of_string version) in
         (name, { version; path = None; git = None })
     (* or of the form dep = { version = "0.1.0", path = "..."} *)
     | Toml.Types.TTable tbl ->
         let version =
           Utils.get_string_opt tbl ~key:"version"
-          |> Option.map ~f:Utils.to_semver
+          |> Option.map ~f:Version.of_string
         in
         let path = Utils.get_string_opt tbl ~key:"path" in
         let git = Utils.get_string_opt tbl ~key:"git" in

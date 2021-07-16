@@ -1,7 +1,7 @@
 open Core
 
 (** minimum version of opam we support *)
-let opam_version : Semver.t = Option.value_exn (Semver.of_string "2.0.8")
+let opam_version = Version.of_string "2.0.8"
 
 (** default version of OCaml *)
 let ocaml_version = "4.12.0"
@@ -22,7 +22,7 @@ ocaml_version = "{{ocaml_version}}"
 
 # your dependencies go here
 [dependencies]
-base = "0.14.1"
+base = "v0.14.1"
 
 |}
   in
@@ -56,3 +56,29 @@ let git_ignore = {|
   _*
 
   |}
+
+(** default dune-project file *)
+let dune_project = {| 
+(lang dune 2.8)
+|}
+
+(** default dune file for an executable *)
+let dune_executable =
+  {|
+(executable
+ (name {{name}})
+ (libraries {{dependencies}}))
+
+|}
+
+(** default dune file for a library *)
+let dune_lib =
+  {| 
+(library
+ (name {{name}})
+ (public_name {{public_name}})
+ (inline_tests)
+ (libraries {{dependencies}}))
+ (preprocess (pps ppx_inline_test))
+
+|}
